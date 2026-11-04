@@ -1,5 +1,5 @@
 // Service worker: funciona offline. Sube VERSION en cada deploy para invalidar la caché.
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = `scoundrel-${VERSION}`;
 const ASSETS = [
   './',
@@ -24,6 +24,10 @@ const ASSETS = [
   './js/decks/classic/deck.js',
   './js/decks/dungeon/deck.js',
   './js/decks/neon/deck.js',
+  './js/decks/arcane/deck.js',
+  './js/decks/ocean/deck.js',
+  './js/decks/lcd/deck.js',
+  './js/decks/clean/deck.js',
   './icons/icon-192.png',
   './icons/apple-touch-icon.png',
 ];

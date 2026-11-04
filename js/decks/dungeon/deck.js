@@ -190,3 +190,6 @@ export default {
   back,
 };
 
+
+// Sprites reutilizados por otros mazos.
+export { POTION };

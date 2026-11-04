@@ -7,8 +7,12 @@
 import classic from './classic/deck.js';
 import dungeon from './dungeon/deck.js';
 import neon from './neon/deck.js';
+import arcane from './arcane/deck.js';
+import ocean from './ocean/deck.js';
+import lcd from './lcd/deck.js';
+import clean from './clean/deck.js';
 
-export const DECKS = [classic, dungeon, neon];
+export const DECKS = [classic, dungeon, neon, arcane, ocean, lcd, clean];
 
 export function getDeck(id) {
   return DECKS.find((d) => d.id === id) || DECKS[0];

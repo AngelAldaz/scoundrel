@@ -1,8 +1,6 @@
 // Mazo Clásico: baraja de póker en pixel art.
+// pokerDeck() es una plantilla: otros mazos (p. ej. LCD) la reutilizan con su propia paleta.
 import { svg, frame, corners, suitGlyph, spriteAt, text, rankLabel } from '../pixel.js';
-
-const INK = { S: '#22223a', C: '#22223a', H: '#e8413c', D: '#e8413c' };
-const PAPER = '#f4ecd8';
 
 // Posiciones de los pips (y > 70 se dibujan invertidos).
 const L = 37, M = 50, R = 63;
@@ -26,51 +24,67 @@ const CROWN = [
   'yyyyyyyyyy',
 ];
 
-function face(card) {
-  const ink = INK[card.suit];
-  let body = frame({ fill: PAPER, inner: null });
-  if (card.rank <= 10) {
-    for (const [x, y] of PIPS[card.rank]) body += suitGlyph(card.suit, ink, x, y, 1.6, y > 70 ? 180 : 0);
-  } else if (card.rank === 14) {
-    body += suitGlyph(card.suit, ink, 50, 70, 4.4);
-  } else {
-    // Figura: panel con corona, letra grande y palo.
-    body += `<rect x="24" y="26" width="52" height="88" fill="${ink}"/>`;
-    body += `<rect x="27" y="29" width="46" height="82" fill="#e9c46a"/>`;
-    body += `<rect x="30" y="32" width="40" height="76" fill="${PAPER}"/>`;
-    body += spriteAt(CROWN, { y: '#e9a23b', r: '#e8413c' }, 50, 46, 3);
-    body += text(rankLabel(card.rank), 50, 76, { size: 46, fill: ink });
-    body += suitGlyph(card.suit, ink, 50, 98, 1.6);
-  }
-  body += corners(card, ink);
-  return svg(body);
-}
+// c = { paper, black, red, border, faceFrame, crown, crownGem, back, backDark, backLight, backMark }
+export function pokerDeck(meta, c) {
+  const ink = (suit) => (suit === 'S' || suit === 'C' ? c.black : c.red);
 
-function back() {
-  let b = frame({ fill: '#2f6fb3' });
-  b += `<rect x="10" y="10" width="80" height="120" fill="#24548a"/>`;
-  // patrón de rombos
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 5; x++) {
-      const cx = 18 + x * 16 + (y % 2 ? 8 : 0);
-      const cy = 18 + y * 15;
-      if (cx > 84) continue;
-      b += `<path d="M${cx} ${cy - 5}L${cx + 5} ${cy}L${cx} ${cy + 5}L${cx - 5} ${cy}Z" fill="#3d86d4"/>`;
+  function face(card) {
+    const k = ink(card.suit);
+    let body = frame({ fill: c.paper, border: c.border });
+    if (card.rank <= 10) {
+      for (const [x, y] of PIPS[card.rank]) body += suitGlyph(card.suit, k, x, y, 1.6, y > 70 ? 180 : 0);
+    } else if (card.rank === 14) {
+      body += suitGlyph(card.suit, k, 50, 70, 4.4);
+    } else {
+      // Figura: panel con corona, letra grande y palo.
+      body += `<rect x="24" y="26" width="52" height="88" fill="${k}"/>`;
+      body += `<rect x="27" y="29" width="46" height="82" fill="${c.faceFrame}"/>`;
+      body += `<rect x="30" y="32" width="40" height="76" fill="${c.paper}"/>`;
+      body += spriteAt(CROWN, { y: c.crown, r: c.crownGem }, 50, 46, 3);
+      body += text(rankLabel(card.rank), 50, 76, { size: 46, fill: k });
+      body += suitGlyph(card.suit, k, 50, 98, 1.6);
     }
+    body += corners(card, k);
+    return svg(body);
   }
-  b += `<rect x="30" y="52" width="40" height="36" fill="#f4ecd8"/>`;
-  b += `<rect x="32" y="54" width="36" height="32" fill="#e8413c"/>`;
-  b += suitGlyph('S', '#f4ecd8', 50, 70, 2.2);
-  return svg(b);
+
+  function back() {
+    let b = frame({ fill: c.back, border: c.border });
+    b += `<rect x="10" y="10" width="80" height="120" fill="${c.backDark}"/>`;
+    // patrón de rombos
+    for (let y = 0; y < 8; y++) {
+      for (let x = 0; x < 5; x++) {
+        const cx = 18 + x * 16 + (y % 2 ? 8 : 0);
+        const cy = 18 + y * 15;
+        if (cx > 84) continue;
+        b += `<path d="M${cx} ${cy - 5}L${cx + 5} ${cy}L${cx} ${cy + 5}L${cx - 5} ${cy}Z" fill="${c.backLight}"/>`;
+      }
+    }
+    b += `<rect x="30" y="52" width="40" height="36" fill="${c.paper}"/>`;
+    b += `<rect x="32" y="54" width="36" height="32" fill="${c.backMark}"/>`;
+    b += suitGlyph('S', c.paper, 50, 70, 2.2);
+    return svg(b);
+  }
+
+  return { ...meta, face, back };
 }
 
-export default {
+export default pokerDeck({
   id: 'classic',
   name: 'Clásico',
   description: 'La baraja de póker de toda la vida, en pixel.',
   palette: { swirl: ['#1e5a8c', '#c0392b', '#0f2a40'], accent: '#e8413c' },
   labels: { monster: 'Monstruo', weapon: 'Arma', potion: 'Poción' },
-  face,
-  back,
-};
-
+}, {
+  paper: '#f4ecd8',
+  black: '#22223a',
+  red: '#e8413c',
+  border: '#1b1b2a',
+  faceFrame: '#e9c46a',
+  crown: '#e9a23b',
+  crownGem: '#e8413c',
+  back: '#2f6fb3',
+  backDark: '#24548a',
+  backLight: '#3d86d4',
+  backMark: '#e8413c',
+});
