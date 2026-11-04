@@ -3,7 +3,7 @@ import { DECKS, getDeck } from './decks/index.js';
 import { createBackground } from './ui/background.js';
 import { createGameController } from './ui/game.js';
 import { staticCard } from './ui/board.js';
-import { sfx, unlock, startMusic } from './audio/audio.js';
+import { sfx, unlock, startMusic, setTheme } from './audio/audio.js';
 import { getStats, recordGame, resetStats } from './stats.js';
 import { leaderboardEnabled, fetchTop, submitScore } from './leaderboard.js';
 import { remove } from './storage.js';
@@ -24,6 +24,7 @@ function applyVisuals() {
   const deck = getDeck(settings.deck);
   document.documentElement.style.setProperty('--accent', deck.palette.accent);
   bg.setPalette(deck.palette.swirl);
+  setTheme(deck.music || deck.id);
 }
 applyVisuals();
 onSettingChange((k) => {
@@ -33,6 +34,8 @@ onSettingChange((k) => {
 
 // ---------- Router ----------
 function show(name) {
+  if (current !== name) sfx.whoosh();
+  game.setActive(name === 'game');
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === `screen-${name}`));
   current = name;
   if (name === 'menu') renderMenu();
@@ -126,7 +129,7 @@ function renderSettings() {
     const k = el.dataset.toggle;
     setSetting(k, !settings[k]);
     el.classList.toggle('on', settings[k]);
-    sfx.click();
+    sfx.toggle(settings[k]);
   }));
   $$('[data-seg]', box).forEach((segEl) => segEl.addEventListener('click', (e) => {
     const b = e.target.closest('button');
@@ -171,7 +174,7 @@ function renderDecks() {
     item.insertAdjacentHTML('beforeend', `<h3>${esc(deck.name)}${deck.id === settings.deck ? '<span class="badge">EN USO</span>' : ''}</h3><p>${esc(deck.description)}</p>`);
     item.addEventListener('click', () => {
       setSetting('deck', deck.id);
-      sfx.equip();
+      sfx.motif();
       const r = item.getBoundingClientRect();
       burst(r.left + r.width / 2, r.top + r.height / 2, [deck.palette.accent, '#ffffff', '#ffcc33'], 18);
       renderDecks();

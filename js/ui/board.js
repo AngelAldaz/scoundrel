@@ -7,7 +7,7 @@ const BOTTOM_SCALE = 0.8;
 // Hash estable para dar a cada carta un "desorden" propio en el descarte.
 const hash = (s) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
 
-export function createBoard(table, { onTap, getTag }) {
+export function createBoard(table, { onTap, getTag, onPress, onCancel }) {
   const els = new Map(); // id → elemento
   let slots = [null, null, null, null]; // id de carta por hueco de la sala
   let geo = null;
@@ -91,6 +91,7 @@ export function createBoard(table, { onTap, getTag }) {
       if (!el.classList.contains('live')) return;
       start = { x: e.clientX, y: e.clientY };
       el.classList.add('pressed');
+      onPress?.(el.dataset.id);
       const r = el.getBoundingClientRect();
       const nx = (e.clientX - r.left) / r.width - 0.5;
       const ny = (e.clientY - r.top) / r.height - 0.5;
@@ -228,11 +229,31 @@ export function createBoard(table, { onTap, getTag }) {
   }
 
   function relayout() {
-    if (!lastState || !table.clientWidth) return;
-    geo = computeGeo();
+    if (!lastState || !table.clientWidth || !table.clientHeight) return;
+    const next = computeGeo();
+    if (geo && next.W === geo.W && next.H === geo.H) return;
+    geo = next;
     placeSlots();
+    hideChoice();
     render(lastState);
   }
+
+  // iOS cambia el tamaño de la ventana al bloquear/desbloquear (la pantalla de bloqueo es vertical)
+  // y no siempre avisa con "resize" al volver. ResizeObserver mide la mesa ya maquetada.
+  let pending = 0;
+  const scheduleRelayout = () => {
+    cancelAnimationFrame(pending);
+    pending = requestAnimationFrame(relayout);
+  };
+  if (window.ResizeObserver) new ResizeObserver(scheduleRelayout).observe(table);
+  addEventListener('resize', scheduleRelayout);
+  addEventListener('orientationchange', () => setTimeout(scheduleRelayout, 300));
+  addEventListener('pageshow', scheduleRelayout);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    scheduleRelayout();
+    setTimeout(scheduleRelayout, 350);
+  });
 
   function cardEl(id) { return els.get(id); }
 
@@ -246,7 +267,7 @@ export function createBoard(table, { onTap, getTag }) {
     choiceShownAt = performance.now();
     const back = document.createElement('div');
     back.className = 'choice-backdrop';
-    back.addEventListener('pointerdown', (e) => { e.preventDefault(); hideChoice(); });
+    back.addEventListener('pointerdown', (e) => { e.preventDefault(); hideChoice(); onCancel?.(); });
     const box = document.createElement('div');
     box.className = 'choice';
     box.style.left = `${geo.room[i].x + geo.cw / 2}px`;

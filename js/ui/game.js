@@ -4,7 +4,7 @@ import {
 } from '../engine/rules.js';
 import { createBoard } from './board.js';
 import { floatText, burst, flash, shake, popClass, centerOf } from './fx.js';
-import { sfx } from '../audio/audio.js';
+import { sfx, setHeartbeat } from '../audio/audio.js';
 import { settings } from '../settings.js';
 import { save, load, remove } from '../storage.js';
 import { rankLabel } from '../decks/pixel.js';
@@ -24,7 +24,8 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
     fleeHint: $('.flee-hint'),
     toast: $('#toast'),
   };
-  const board = createBoard($('#table'), { onTap, getTag });
+  const board = createBoard($('#table'), { onTap, getTag, onPress: () => sfx.pickup(), onCancel: () => sfx.cancel() });
+  let active = false;
   let state = null;
   let busyUntil = 0;
   let shownHp = MAX_HP;
@@ -70,6 +71,7 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
     if (hpMode !== 'skip') {
       hud.hpFill.style.width = `${(Math.max(0, hp) / MAX_HP) * 100}%`;
       hud.hpPanel.classList.toggle('low', hp > 0 && hp <= 6);
+      syncHeartbeat();
     }
 
     if (state.weapon) {
@@ -117,15 +119,26 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
     return el ? centerOf(el) : { x: innerWidth / 2, y: innerHeight / 2 };
   }
 
+  // Latido de fondo con 5 o menos de vida.
+  function syncHeartbeat() {
+    setHeartbeat(active && !!state && !state.over && state.hp > 0 && state.hp <= 5);
+  }
+
+  function choose(id, opts) {
+    sfx.choiceOpen();
+    board.showChoice(id, opts);
+  }
+
   function start(saved = null) {
     state = saved || createGame({ weaponRule: settings.weaponRule });
     shownHp = state.hp;
     board.reset(state, getDeck());
     updateHud({ hp: 'instant' });
     requestAnimationFrame(() => {
-      board.render(state, { dealt: state.room.map((c) => c.id), dealDelay: 0.1 });
-      state.room.forEach((_, i) => later(0.1 + i * 0.09 * settings.speed, () => sfx.deal(0)));
-      lock(dur() + 0.5);
+      board.render(state, { dealt: state.room.map((c) => c.id), dealDelay: 0.35 });
+      sfx.shuffle();
+      state.room.forEach((_, i) => later(0.35 + i * 0.09 * settings.speed, () => sfx.deal(i)));
+      lock(dur() + 0.75);
     });
     persist();
   }
@@ -139,7 +152,6 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
     if (!state || state.over || busy()) return;
     const card = state.room.find((c) => c.id === id);
     if (!card) return;
-    sfx.click();
 
     if (card.type === 'monster') {
       const armed = canUseWeapon(state, card);
@@ -156,12 +168,12 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
         });
       }
       opts.push({ label: '✊ A mano', sub: `−${bare} vida${bare >= state.hp ? ' · MORTAL' : ''}`, cls: 'btn-red', onPick: () => act(id, { useWeapon: false }) });
-      board.showChoice(id, opts);
+      choose(id, opts);
       return;
     }
 
     if (card.type === 'weapon' && settings.confirm && state.weapon && card.value < state.weapon.value && state.weaponStack.length === 0) {
-      board.showChoice(id, [
+      choose(id, [
         { label: 'Equipar', sub: `cambia tu ♦${state.weapon.value}`, cls: 'btn-blue', onPick: () => act(id) },
         { label: 'Cancelar', cls: 'btn-slate', onPick: () => {} },
       ]);
@@ -169,7 +181,7 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
     }
 
     if (card.type === 'potion' && settings.confirm && (state.potionUsed || state.hp === MAX_HP)) {
-      board.showChoice(id, [
+      choose(id, [
         { label: 'Beber', sub: state.potionUsed ? 'sin efecto' : 'vida llena', cls: 'btn-green', onPick: () => act(id) },
         { label: 'Cancelar', cls: 'btn-slate', onPick: () => {} },
       ]);
@@ -217,6 +229,9 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
         case 'slayBare': {
           const armed = e.type === 'slayWeapon';
           if (armed) sfx.slash(e.damage); else sfx.punch(e.damage);
+          if (armed && state.weapon && weaponLimit(state) < 2) {
+            later(d + 0.2, () => { sfx.weaponBreak(); toast('Tu arma ya no puede matar más monstruos'); });
+          }
           if (from) floatText(from.x, from.y, armed ? '⚔ CON ARMA' : '✊ A MANO', armed ? '#46e0ff' : '#ff4d4d');
           later(d * 0.7, () => {
             const p = screenPos(e.card);
@@ -259,6 +274,7 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
     }
 
     dealt.forEach((_, i) => later(refillDelay + i * 0.09 * settings.speed, () => sfx.deal(i)));
+    if (dealt.length && !events.some((e) => e.type === 'toBottom')) later(refillDelay * 0.8, () => sfx.roomClear());
     if (dealt.length) later(refillDelay + d, () => updateHud({ hp: 'skip' }));
     updateHud({ hp: 'skip' });
     lock(refillDelay + d + (dealt.length ? dealt.length * 0.09 * settings.speed : 0) + 0.05);
@@ -270,19 +286,20 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
       later(d + 0.9, () => {
         if (end.type === 'win') { sfx.win(); onPulse?.(4); } else { sfx.lose(); flash('rgba(0,0,0,.6)'); }
         busyUntil = 0;
+        syncHeartbeat();
         onGameOver(state);
       });
     }
   }
 
   hud.flee.addEventListener('click', flee);
-  addEventListener('resize', () => board.relayout());
 
   return {
     start,
     resumeSaved,
     setDeck: (deck) => board.setDeck(deck),
     relayout: () => board.relayout(),
+    setActive(on) { active = on; syncHeartbeat(); },
     get state() { return state; },
   };
 }
