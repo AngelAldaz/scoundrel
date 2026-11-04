@@ -7,7 +7,7 @@ const BOTTOM_SCALE = 0.8;
 // Hash estable para dar a cada carta un "desorden" propio en el descarte.
 const hash = (s) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
 
-export function createBoard(table, { onTap }) {
+export function createBoard(table, { onTap, getTag }) {
   const els = new Map(); // id → elemento
   let slots = [null, null, null, null]; // id de carta por hueco de la sala
   let geo = null;
@@ -20,6 +20,10 @@ export function createBoard(table, { onTap }) {
     discard: table.querySelector('.slot-discard'),
   };
   const roomLabel = table.querySelector('.room-label');
+  const weaponInfo = document.createElement('div');
+  weaponInfo.className = 'weapon-info';
+  table.appendChild(weaponInfo);
+  let choiceShownAt = 0;
 
   function computeGeo() {
     const W = table.clientWidth;
@@ -27,7 +31,8 @@ export function createBoard(table, { onTap }) {
     const g = Math.max(8, Math.min(16, W * 0.02));
     const label = 14;
     const cw1 = (W - 7 * g) / 5;
-    const ch2 = (H - 2 * g - label) / (1 + BOTTOM_SCALE);
+    const extra = 46; // etiqueta bajo las cartas de la sala + rótulo del arma
+    const ch2 = (H - 2 * g - label - extra) / (1 + BOTTOM_SCALE);
     const cw = Math.floor(Math.min(cw1, ch2 / 1.4));
     const ch = Math.round(cw * 1.4);
     const roomW = 4 * cw + 3 * g;
@@ -55,6 +60,8 @@ export function createBoard(table, { onTap }) {
     p(slotEls.discard, geo.discard.x, geo.discard.y, geo.bw, geo.bh);
     roomLabel.style.left = `${geo.roomLabel.x}px`;
     roomLabel.style.top = `${geo.roomLabel.y}px`;
+    weaponInfo.style.left = `${geo.weapon.x}px`;
+    weaponInfo.style.top = `${geo.weapon.y - 24}px`;
     table.style.setProperty('--cw', `${geo.cw}px`);
     table.style.setProperty('--ch', `${geo.ch}px`);
   }
@@ -63,7 +70,7 @@ export function createBoard(table, { onTap }) {
     const el = document.createElement('div');
     el.className = 'card down buried';
     el.dataset.id = card.id;
-    el.innerHTML = `<div class="card-tilt"><div class="card-flip"><div class="face front"></div><div class="face back"></div></div></div>`;
+    el.innerHTML = `<div class="card-tilt"><div class="card-flip"><div class="face front"></div><div class="face back"></div></div></div><div class="card-tag"></div>`;
     el.style.setProperty('--sway', `${-(Math.abs(hash(card.id)) % 3200) / 1000}s`);
     bindPress(el);
     table.appendChild(el);
@@ -114,6 +121,19 @@ export function createBoard(table, { onTap }) {
     el.classList.toggle('live', live);
   }
 
+  // Etiqueta bajo la carta con lo que pasará al jugarla (p. ej. "⚔ −3").
+  function setTag(el, tag) {
+    const t = el.querySelector('.card-tag');
+    if (!tag) { t.className = 'card-tag'; return; }
+    t.className = `card-tag show ${tag.cls}`;
+    t.textContent = tag.text;
+  }
+
+  function setWeaponInfo(html, cls = '') {
+    weaponInfo.className = `weapon-info ${cls}`;
+    weaponInfo.innerHTML = html;
+  }
+
   function syncSlots(room) {
     const ids = new Set(room.map((c) => c.id));
     slots = slots.map((id) => (id && ids.has(id) ? id : null));
@@ -131,6 +151,9 @@ export function createBoard(table, { onTap }) {
     syncSlots(state.room);
     const speed = settings.speed;
 
+    const roomIds = new Set(state.room.map((c) => c.id));
+    for (const [id, el] of els) if (!roomIds.has(id)) setTag(el, null);
+
     state.dungeon.forEach((c, d) => {
       const el = els.get(c.id) || makeCard(c);
       const off = Math.min(d, 4);
@@ -143,17 +166,21 @@ export function createBoard(table, { onTap }) {
       const k = dealt.indexOf(c.id);
       const delay = k >= 0 ? dealDelay + k * 0.09 * speed : 0;
       setPos(el, { ...geo.room[i], z: 100 + i, live: !state.over, delay });
+      setTag(el, state.over ? null : getTag?.(c));
     });
 
     if (state.weapon) {
       const el = els.get(state.weapon.id) || makeCard(state.weapon);
       setPos(el, { ...geo.weapon, s: BOTTOM_SCALE, z: 70 });
       const n = state.weaponStack.length;
-      const avail = geo.discard.x - geo.weapon.x - geo.bw - geo.g;
-      const step = n ? Math.min(geo.bw * 0.42, avail / n) : 0;
+      // La pila empieza a la derecha del arma para que el arma se vea entera;
+      // cada monstruo deja visible la esquina del anterior.
+      const first = geo.weapon.x + geo.bw + geo.g * 0.6;
+      const avail = geo.discard.x - geo.g - geo.bw - first;
+      const step = n > 1 ? Math.min(geo.bw * 0.4, avail / (n - 1)) : 0;
       state.weaponStack.forEach((c, i) => {
         const m = els.get(c.id) || makeCard(c);
-        setPos(m, { x: geo.weapon.x + (i + 1) * step, y: geo.weapon.y + 4, s: BOTTOM_SCALE, z: 71 + i, r: 0 });
+        setPos(m, { x: first + i * step, y: geo.weapon.y, s: BOTTOM_SCALE, z: 71 + i, r: 0 });
       });
     }
 
@@ -216,6 +243,7 @@ export function createBoard(table, { onTap }) {
     const i = slots.indexOf(id);
     if (!el || i < 0) return;
     el.classList.add('selected');
+    choiceShownAt = performance.now();
     const back = document.createElement('div');
     back.className = 'choice-backdrop';
     back.addEventListener('pointerdown', (e) => { e.preventDefault(); hideChoice(); });
@@ -228,9 +256,16 @@ export function createBoard(table, { onTap }) {
       b.className = `btn ${o.cls}`;
       b.disabled = !!o.disabled;
       b.innerHTML = `${o.label}${o.sub ? `<small>${o.sub}</small>` : ''}`;
-      b.addEventListener('click', () => { hideChoice(); o.onPick(); });
+      b.addEventListener('click', () => {
+        // Evita que un doble toque rápido sobre la carta elija una opción sin querer.
+        if (performance.now() - choiceShownAt < 400) return;
+        hideChoice();
+        o.onPick();
+      });
       box.appendChild(b);
     }
+    box.classList.add('arming');
+    setTimeout(() => box.classList.remove('arming'), 400);
     table.append(back, box);
   }
 
@@ -239,7 +274,7 @@ export function createBoard(table, { onTap }) {
     table.querySelectorAll('.card.selected').forEach((n) => n.classList.remove('selected'));
   }
 
-  return { render, reset, setDeck, relayout, cardEl, showChoice, hideChoice, get geo() { return geo; }, slotEls };
+  return { render, reset, setDeck, relayout, cardEl, showChoice, hideChoice, setWeaponInfo, get geo() { return geo; }, slotEls };
 }
 
 // Carta estática (menú, vista previa de mazos).

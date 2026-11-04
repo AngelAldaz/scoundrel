@@ -535,3 +535,43 @@ input[type='range'] { width: 46%; accent-color: var(--orange); height: 28px; }
 @media (prefers-reduced-motion: reduce) {
   .logo span, .card.live .card-tilt, #crt { animation: none; }
 }
+
+/* ---------- Vista previa bajo las cartas y rótulo del arma ---------- */
+.card-tag {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 5px);
+  transform: translateX(-50%);
+  display: none;
+  padding: 1px 9px;
+  border-radius: 7px;
+  font-size: clamp(15px, 4.6vh, 20px);
+  line-height: 1.15;
+  white-space: nowrap;
+  text-shadow: 0 2px 0 var(--shadow);
+  box-shadow: 0 3px 0 var(--shadow);
+  pointer-events: none;
+}
+.card.live .card-tag.show { display: block; animation: tag-in calc(0.3s * var(--speed)) cubic-bezier(.2, 1.6, .4, 1) both; animation-delay: calc(var(--delay, 0s) + var(--dur)); }
+@keyframes tag-in { from { transform: translateX(-50%) scale(0.4); opacity: 0; } }
+.tag-weapon { background: var(--blue); }
+.tag-bare { background: var(--red); }
+.tag-heal { background: var(--green); }
+.tag-equip { background: var(--cyan); color: var(--shadow); text-shadow: none; }
+.tag-waste { background: var(--slate); color: var(--ink-dim); }
+
+.weapon-info {
+  position: absolute;
+  font-size: clamp(14px, 4.2vh, 18px);
+  white-space: nowrap;
+  color: var(--ink-dim);
+  text-shadow: 0 2px 0 var(--shadow);
+  pointer-events: none;
+}
+.weapon-info b { font-weight: 400; color: var(--cyan); }
+.weapon-info.dead b { color: var(--ink-dim); }
+.weapon-info.dead { color: var(--red); }
+.weapon-info.none b { color: var(--ink); }
+
+.choice.arming .btn { opacity: 0.55; }
+.choice .btn { transition: opacity 0.15s, transform 0.08s, box-shadow 0.08s; }

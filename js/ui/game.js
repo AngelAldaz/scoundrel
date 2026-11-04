@@ -24,7 +24,7 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
     fleeHint: $('.flee-hint'),
     toast: $('#toast'),
   };
-  const board = createBoard($('#table'), { onTap });
+  const board = createBoard($('#table'), { onTap, getTag });
   let state = null;
   let busyUntil = 0;
   let shownHp = MAX_HP;
@@ -75,12 +75,15 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
     if (state.weapon) {
       hud.weaponVal.textContent = `♦ ${state.weapon.value}`;
       const lim = weaponLimit(state);
-      hud.weaponLimit.textContent = lim === Infinity
+      const limText = lim === Infinity
         ? 'Sin usar: mata cualquiera'
-        : lim < 2 ? 'Ya no mata a nadie' : `Mata hasta ${rankLabel(lim)} (${lim})`;
+        : lim < 2 ? 'Ya no mata a nadie' : `Mata hasta ${lim > 10 ? `${rankLabel(lim)} (${lim})` : lim}`;
+      hud.weaponLimit.textContent = limText;
+      board.setWeaponInfo(`<b>TU ARMA ♦${state.weapon.value}</b> · ${limText}`, lim < 2 ? 'dead' : '');
     } else {
       hud.weaponVal.textContent = '—';
       hud.weaponLimit.textContent = 'Lucha a mano';
+      board.setWeaponInfo('<b>SIN ARMA</b> · coge un ♦ para equiparlo', 'none');
     }
     hud.potion.textContent = state.potionUsed ? 'Usada en esta sala' : 'Disponible';
     hud.potion.classList.toggle('used', state.potionUsed);
@@ -92,6 +95,21 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
       : can ? 'Las 4 cartas al fondo'
         : state.avoidedLast && state.roomPlayed === 0 ? 'Huiste de la sala anterior'
           : state.roomPlayed > 0 ? 'Ya has entrado en la sala' : 'Sala incompleta';
+  }
+
+  // Vista previa de cada carta de la sala: qué pasará si la juegas.
+  function getTag(card) {
+    if (card.type === 'monster') {
+      if (canUseWeapon(state, card)) {
+        const dmg = previewDamage(state, card, true);
+        return { text: `⚔ ${dmg ? '−' + dmg : '0'}`, cls: 'tag-weapon' };
+      }
+      return { text: `✊ −${card.value}`, cls: 'tag-bare' };
+    }
+    if (card.type === 'weapon') return { text: state.weapon ? `cambiar ♦${state.weapon.value}` : 'equipar', cls: 'tag-equip' };
+    if (state.potionUsed) return { text: 'sin efecto', cls: 'tag-waste' };
+    const heal = Math.min(card.value, MAX_HP - state.hp);
+    return { text: heal ? `+${heal}` : 'vida llena', cls: heal ? 'tag-heal' : 'tag-waste' };
   }
 
   function screenPos(id) {
@@ -199,6 +217,7 @@ export function createGameController({ root, getDeck, onGameOver, onPulse }) {
         case 'slayBare': {
           const armed = e.type === 'slayWeapon';
           if (armed) sfx.slash(e.damage); else sfx.punch(e.damage);
+          if (from) floatText(from.x, from.y, armed ? '⚔ CON ARMA' : '✊ A MANO', armed ? '#46e0ff' : '#ff4d4d');
           later(d * 0.7, () => {
             const p = screenPos(e.card);
             burst(p.x, p.y, armed ? ['#ffffff', '#46e0ff', '#ffcc33'] : ['#ff4d4d', '#ffffff', '#b52f2f'], armed ? 14 : 20, armed ? 0.9 : 1.2);
