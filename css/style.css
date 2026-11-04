@@ -269,7 +269,6 @@ body.no-crt #crt { display: none; }
   width: var(--cw, 100px);
   height: var(--ch, 140px);
   transition: transform var(--dur) cubic-bezier(.2, 1.25, .35, 1), visibility 0s linear var(--dur);
-  will-change: transform;
 }
 .card.buried { visibility: hidden; }
 .card-tilt {
@@ -592,3 +591,8 @@ input[type='range'] { width: 46%; accent-color: var(--orange); height: 28px; }
   .sidebar .val { font-size: clamp(20px, 6vh, 28px); }
   .btn-flee { padding-top: 0.35em; padding-bottom: 0.35em; }
 }
+
+/* Al repintar tras desbloquear, las etiquetas no vuelven a animarse */
+.table.repainting .card-tag { animation: none !important; }
+.table.no-anim .card, .table.no-anim .card-flip, .table.no-anim .card-tilt { transition: none !important; }
+.table.no-anim .card-tag { animation: none !important; }

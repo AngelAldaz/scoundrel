@@ -253,17 +253,47 @@ export function createBoard(table, { onTap, getTag, onPress, onCancel }) {
   if (window.ResizeObserver) new ResizeObserver(scheduleRelayout).observe(table);
   addEventListener('resize', scheduleRelayout);
   addEventListener('orientationchange', () => setTimeout(scheduleRelayout, 300));
-  addEventListener('pageshow', scheduleRelayout);
   // Red de seguridad: mientras la mesa está visible, comprueba si su tamaño real cambió.
   setInterval(() => {
     if (!geo || !table.offsetParent || document.hidden) return;
     if (table.clientWidth !== geo.W || table.clientHeight !== geo.H) relayout();
   }, 500);
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) return;
+  // Al bloquear el iPhone, iOS libera la memoria gráfica de la página y al volver solo
+  // repinta lo que se anima: las cartas quietas (arma, pila, descarte) se quedaban sin pintar.
+  // Ocultar y mostrar la mesa obliga a repintarla entera.
+  function repaint() {
+    if (!table.offsetParent) return;
+    table.classList.add('repainting');
+    table.style.display = 'none';
+    void table.offsetHeight;
+    table.style.display = '';
+    clearTimeout(repaintTimer);
+    repaintTimer = setTimeout(() => table.classList.remove('repainting'), 1500);
+  }
+  let repaintTimer = 0;
+  // Reconstruye todos los elementos de la mesa en su sitio, sin animación
+  // (lo mismo que salir al menú y continuar, que siempre lo arregla).
+  function rebuild() {
+    if (!lastState || !deck || !table.offsetParent) return;
+    if (table.clientHeight > table.clientWidth) return; // aún en vertical
+    hideChoice();
+    const keepSlots = slots.slice();
+    table.classList.add('no-anim');
+    reset(lastState, deck);
+    slots = keepSlots;
+    render(lastState);
+    void table.offsetHeight;
+    requestAnimationFrame(() => requestAnimationFrame(() => table.classList.remove('no-anim')));
+  }
+
+  const onReturn = () => {
     scheduleRelayout();
-    setTimeout(scheduleRelayout, 350);
-  });
+    setTimeout(() => { if (!document.hidden) { relayout(); rebuild(); } }, 120);
+    [600, 1500].forEach((ms) => setTimeout(() => { if (!document.hidden) repaint(); }, ms));
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) onReturn(); });
+  addEventListener('focus', onReturn);
+  addEventListener('pageshow', onReturn);
 
   function cardEl(id) { return els.get(id); }
 
