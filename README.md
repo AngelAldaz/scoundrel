@@ -41,11 +41,10 @@ Sin configurar, el juego funciona igual y guarda récord, racha e historial en e
    rango de puntuación y limita a un envío cada 30 s por nombre.
 3. **Project Settings → API**: copia la *Project URL* y la clave *anon public* en [`js/config.js`](js/config.js).
    La clave anon es pública por diseño; la protección la dan las políticas RLS.
-4. **Keep-alive** (Supabase pausa los proyectos gratis tras 7 días sin actividad): en GitHub,
-   **Settings → Secrets and variables → Actions → New repository secret**, crea `SUPABASE_URL` y `SUPABASE_ANON_KEY`
-   con los mismos valores. El workflow [`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml) consulta
-   la base de datos cada 3 días y, además, se reactiva a sí mismo para que GitHub no desactive el cron tras 60 días
-   sin commits. Puedes lanzarlo a mano desde la pestaña **Actions → Supabase keep-alive → Run workflow** para comprobarlo.
+4. **Keep-alive** (Supabase pausa los proyectos gratis tras 7 días sin actividad): el workflow
+   [`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml) lee la URL y la clave anon de `js/config.js`,
+   consulta la base de datos cada 3 días y se reactiva a sí mismo para que GitHub no desactive el cron tras 60 días sin
+   commits. No necesita secrets. Puedes lanzarlo a mano en **Actions → Supabase keep-alive → Run workflow**.
 
 Nota: como cualquier ranking que se envía desde el navegador, alguien con conocimientos podría enviar una puntuación
 falsa (dentro de los rangos válidos). Para un ranking entre amigos es suficiente.

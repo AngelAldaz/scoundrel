@@ -1,6 +1,8 @@
 # Mantiene despierto el proyecto gratuito de Supabase (se pausa tras 7 días sin actividad)
 # haciendo una consulta cada 3 días. Además reactiva este workflow para que GitHub
 # no lo desactive tras 60 días sin commits en el repo.
+# Lee la URL y la clave anon (pública) de js/config.js; los secrets SUPABASE_URL /
+# SUPABASE_ANON_KEY, si existen, tienen prioridad.
 name: Supabase keep-alive
 
 on:
@@ -16,20 +18,23 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Consultar Supabase
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SECRET_URL: ${{ secrets.SUPABASE_URL }}
+          SECRET_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "Secrets SUPABASE_URL / SUPABASE_ANON_KEY no configurados; nada que hacer."
+          URL="${SECRET_URL:-$(sed -n "s/.*SUPABASE_URL = '\([^']*\)'.*/\1/p" js/config.js)}"
+          KEY="${SECRET_KEY:-$(sed -n "s/.*SUPABASE_ANON_KEY = '\([^']*\)'.*/\1/p" js/config.js)}"
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "Supabase no configurado en js/config.js; nada que hacer."
             exit 0
           fi
           for i in 1 2 3; do
             code=$(curl -s -o /dev/null -w '%{http_code}' \
-              "$SUPABASE_URL/rest/v1/scores?select=id&limit=1" \
-              -H "apikey: $SUPABASE_ANON_KEY" \
-              -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+              "$URL/rest/v1/scores?select=id&limit=1" \
+              -H "apikey: $KEY" \
+              -H "Authorization: Bearer $KEY")
             echo "Intento $i → HTTP $code"
             [ "$code" = "200" ] && exit 0
             sleep 20
