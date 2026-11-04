@@ -1,5 +1,5 @@
 // Service worker: funciona offline. Sube VERSION en cada deploy para invalidar la caché.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = `scoundrel-${VERSION}`;
 const ASSETS = [
   './',
