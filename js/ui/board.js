@@ -229,7 +229,12 @@ export function createBoard(table, { onTap, getTag, onPress, onCancel }) {
   }
 
   function relayout() {
-    if (!lastState || !table.clientWidth || !table.clientHeight) return;
+    const W = table.clientWidth;
+    const H = table.clientHeight;
+    if (!lastState || !W || !H) return;
+    // Al bloquear/desbloquear, iOS da un instante a la mesa la altura del modo vertical.
+    // El juego es horizontal: con una mesa más alta que ancha se conserva la última colocación buena.
+    if (H > W) return;
     const next = computeGeo();
     if (geo && next.W === geo.W && next.H === geo.H) return;
     geo = next;
@@ -249,6 +254,11 @@ export function createBoard(table, { onTap, getTag, onPress, onCancel }) {
   addEventListener('resize', scheduleRelayout);
   addEventListener('orientationchange', () => setTimeout(scheduleRelayout, 300));
   addEventListener('pageshow', scheduleRelayout);
+  // Red de seguridad: mientras la mesa está visible, comprueba si su tamaño real cambió.
+  setInterval(() => {
+    if (!geo || !table.offsetParent || document.hidden) return;
+    if (table.clientWidth !== geo.W || table.clientHeight !== geo.H) relayout();
+  }, 500);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) return;
     scheduleRelayout();

@@ -582,3 +582,13 @@ input[type='range'] { width: 46%; accent-color: var(--orange); height: 28px; }
 
 .choice.arming .btn { opacity: 0.55; }
 .choice .btn { transition: opacity 0.15s, transform 0.08s, box-shadow 0.08s; }
+
+/* iPhone en horizontal: barra lateral más compacta para que quepa el texto bajo "Huir" */
+@media (max-height: 430px) {
+  .sidebar { gap: 4px; padding: 6px; }
+  .sidebar .panel { padding: 3px 8px; }
+  .hp-num { font-size: clamp(28px, 8.6vh, 44px); }
+  .hp-bar { margin-top: 4px; }
+  .sidebar .val { font-size: clamp(20px, 6vh, 28px); }
+  .btn-flee { padding-top: 0.35em; padding-bottom: 0.35em; }
+}
