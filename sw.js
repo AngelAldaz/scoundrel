@@ -1,5 +1,5 @@
 // Service worker: funciona offline. Sube VERSION en cada deploy para invalidar la caché.
-const VERSION = 'v8';
+const VERSION = 'v9'; // mantener igual que APP_VERSION en js/version.js
 const CACHE = `scoundrel-${VERSION}`;
 const ASSETS = [
   './',
@@ -7,6 +7,7 @@ const ASSETS = [
   './manifest.webmanifest',
   './css/style.css',
   './js/main.js',
+  './js/version.js',
   './js/config.js',
   './js/storage.js',
   './js/settings.js',
@@ -67,8 +68,9 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
+  // cache: 'no-cache' → siempre pregunta al servidor (GitHub Pages cachea 10 min) y usa 304 si no cambió.
   e.respondWith(
-    fetch(req)
+    fetch(req, { cache: 'no-cache' })
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();

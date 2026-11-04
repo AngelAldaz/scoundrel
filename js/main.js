@@ -8,6 +8,7 @@ import { getStats, recordGame, resetStats } from './stats.js';
 import { leaderboardEnabled, fetchTop, submitScore } from './leaderboard.js';
 import { remove } from './storage.js';
 import { burst } from './ui/fx.js';
+import { APP_VERSION } from './version.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -38,7 +39,7 @@ function show(name) {
   game.setActive(name === 'game');
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === `screen-${name}`));
   current = name;
-  if (name === 'menu') renderMenu();
+  if (name === 'menu') { renderMenu(); setTimeout(reloadIfIdle, 300); }
   if (name === 'settings') renderSettings();
   if (name === 'decks') renderDecks();
   if (name === 'ranking') renderRanking('global');
@@ -67,6 +68,7 @@ function continueGame() {
 
 // ---------- Menú ----------
 function renderMenu() {
+  $('.app-version').textContent = APP_VERSION;
   const logo = $('.logo');
   if (!logo.childElementCount) {
     logo.innerHTML = [...'SCOUNDREL'].map((ch, i) => `<span style="animation-delay:${-i * 0.18}s">${ch}</span>`).join('');
@@ -341,8 +343,25 @@ document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 
+// Actualizaciones: se busca versión nueva al abrir y al volver a la app. Cuando llega,
+// la página se recarga sola, pero solo estando en el menú (la partida está guardada igualmente).
+let updateReady = false;
+function reloadIfIdle() {
+  if (updateReady && current === 'menu' && modal.hidden) location.reload();
+}
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  addEventListener('load', async () => {
+    try {
+      const hadController = !!navigator.serviceWorker.controller;
+      const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController) return; // primera instalación: no hace falta recargar
+        updateReady = true;
+        reloadIfIdle();
+      });
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+    } catch { /* sin service worker el juego funciona igual, solo que sin modo offline */ }
+  });
 }
 
 show('menu');

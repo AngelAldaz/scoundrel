@@ -27,7 +27,7 @@ npm run serve     # http://localhost:5173
 3. En un minuto estará en `https://<tu-usuario>.github.io/scoundrel/`.
 4. En el iPhone: ábrelo en **Safari → Compartir → Añadir a pantalla de inicio**. Ábrelo desde el icono para jugar a pantalla completa.
 
-Al publicar cambios, sube `VERSION` en `sw.js` para que la caché offline se renueve.
+Al publicar cambios, sube la versión en `sw.js` (`VERSION`) y en `js/version.js` (`APP_VERSION`). La app instalada detecta la versión nueva al abrirse o al volver a ella y se recarga sola cuando está en el menú; la versión actual se ve abajo en el menú.
 
 > El audio de Web Audio en iOS respeta el interruptor de silencio: si no oyes nada, quita el modo silencio.
 
